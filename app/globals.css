@@ -1,0 +1,150 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Web3 Modern Design Tokens */
+  --background: #1a1a1a; /* Dark background for overall theme */
+  --foreground: #ffffff; /* Main text color */
+  --card: #2a2a2a; /* Card background for sections */
+  --card-foreground: #ffffff; /* Text color on cards */
+  --popover: #2b2b2b; /* Popover background */
+  --popover-foreground: #ffffff; /* Text color in popovers */
+  --primary: #059669; /* Primary actions like buttons */
+  --primary-foreground: #ffffff; /* Text on primary buttons */
+  --secondary: #10b981; /* Secondary actions */
+  --secondary-foreground: #ffffff; /* Text on secondary buttons */
+  --muted: #6b7280; /* Muted text for secondary information */
+  --muted-foreground: #9ca3af; /* Muted foreground text */
+  --accent: #ec4899; /* Neon accents for highlights */
+  --accent-foreground: #ffffff; /* Text on accent backgrounds */
+  --destructive: #dc2626; /* Error messages or destructive actions */
+  --destructive-foreground: #ffffff; /* Text color on destructive buttons */
+  --border: #374151; /* Card borders */
+  --input: #2a2a2a; /* Input field background */
+  --ring: #10b981; /* Focus ring for inputs */
+  --chart-1: #059669; /* Chart color */
+  --chart-2: #ec4899; /* Secondary chart color */
+  --chart-3: #dc2626; /* Tertiary chart color */
+  --chart-4: #10b981; /* Quaternary chart color */
+  --chart-5: #f59e0b; /* Quinary chart color */
+  --radius: 0.75rem; /* Rounded corners for cards and buttons */
+  --sidebar: #2b2b2b; /* Sidebar background */
+  --sidebar-foreground: #ffffff; /* Sidebar text */
+  --sidebar-primary: #059669; /* Primary sidebar accents */
+  --sidebar-primary-foreground: #ffffff; /* Text on primary sidebar elements */
+  --sidebar-accent: #ec4899; /* Sidebar accent colors */
+  --sidebar-accent-foreground: #ffffff; /* Text on sidebar accent elements */
+  --sidebar-border: #374151; /* Sidebar borders */
+  --sidebar-ring: #10b981; /* Focus ring for sidebar */
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+  --card: #1a1a1a;
+  --card-foreground: #ffffff;
+  --popover: #1a1a1a;
+  --popover-foreground: #ffffff;
+  --primary: #10b981;
+  --primary-foreground: #000000;
+  --secondary: #059669;
+  --secondary-foreground: #ffffff;
+  --muted: #4b5563;
+  --muted-foreground: #9ca3af;
+  --accent: #f472b6;
+  --accent-foreground: #000000;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #374151;
+  --input: #1a1a1a;
+  --ring: #10b981;
+  --chart-1: #10b981;
+  --chart-2: #f472b6;
+  --chart-3: #ef4444;
+  --chart-4: #059669;
+  --chart-5: #f59e0b;
+  --sidebar: #1a1a1a;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #10b981;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #f472b6;
+  --sidebar-accent-foreground: #000000;
+  --sidebar-border: #374151;
+  --sidebar-ring: #10b981;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Added Web3 glow effects and animations */
+@layer utilities {
+  .glow-primary {
+    box-shadow: 0 0 20px rgba(5, 150, 105, 0.3);
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 20px rgba(236, 72, 153, 0.3);
+  }
+
+  .gradient-border {
+    background: linear-gradient(45deg, #059669, #ec4899);
+    padding: 1px;
+    border-radius: 0.75rem;
+  }
+
+  .gradient-text {
+    background: linear-gradient(45deg, #10b981, #ec4899);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
