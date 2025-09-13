@@ -59,7 +59,16 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",
-    "zod": "3.25.67"
+    "zod": "3.25.67",
+    "ethers": "^6.13.4",
+    "wagmi": "^2.12.7",
+    "@tanstack/react-query": "^5.59.0",
+    "viem": "^2.21.45",
+    "@rainbow-me/rainbowkit": "^2.1.0",
+    "framer-motion": "^11.11.17",
+    "js-cookie": "^3.0.5",
+    "uuid": "^10.0.0",
+    "crypto-js": "^4.2.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
