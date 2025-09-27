@@ -1,4 +1,7 @@
 import CryptoJS from 'crypto-js';
+import { uploadToKV, downloadFromKV, setJson, getJson } from './zg-storage';
+import { ethers } from 'ethers';
+import { createZGComputeNetworkBroker, ServiceStructOutput } from '@0glabs/0g-serving-broker';
 
 export interface DeviceFingerprint {
   userAgent: string;
@@ -146,71 +149,97 @@ export function checkForDuplicateFingerprints(
 ): boolean {
   const currentID = generateUserID(currentFingerprint);
   
-  return existingFingerprints.some(fingerprint => {
-    const existingID = generateUserID(fingerprint);
+  return existingFingerprints.some(fp => {
+    const existingID = generateUserID(fp);
     return currentID === existingID;
   });
+}
+
+// zg-storage による JSON 保存／取得のラッパー
+async function getWalletFingerprints(streamId: string): Promise<Array<{ wallet: string; fingerprint: string }>> {
+  return await getJson<Array<{ wallet: string; fingerprint: string }>>(streamId, 'walletFingerprints').catch(() => []);
+}
+
+async function setWalletFingerprints(streamId: string, fingerprints: Array<{ wallet: string; fingerprint: string }>) {
+  return setJson(streamId, 'walletFingerprints', fingerprints);
+}
+
+async function getAccountCreationTime(streamId: string): Promise<string | undefined> {
+  return getJson<string>(streamId, 'accountCreationTime').catch(() => undefined);
+}
+
+async function setAccountCreationTime(streamId: string, time: string) {
+  return setJson(streamId, 'accountCreationTime', time);
+}
+
+async function getDeviceFingerprints(streamId: string): Promise<string[]> {
+  return getJson<string[]>(streamId, 'deviceFingerprints').catch(() => []);
+}
+
+async function setDeviceFingerprints(streamId: string, fingerprints: string[]) {
+  return setJson(streamId, 'deviceFingerprints', fingerprints);
 }
 
 /**
  * Advanced sybil detection using multiple factors
  */
-export function advancedSybilDetection(
+export async function advancedSybilDetection(
   fingerprint: DeviceFingerprint,
   walletAddress: string,
   transactionHistory: any[],
-  socialConnections: any[]
-): SybilDetectionResult {
+  socialConnections: any[],
+  streamId: string
+): Promise<SybilDetectionResult> {
   const baseResult = calculateSybilScore(fingerprint);
   let score = baseResult.score;
   const factors = [...baseResult.factors];
   const recommendations = [...baseResult.recommendations];
 
-  // Check wallet age and transaction history
+  // Transaction history check
   if (transactionHistory.length < 5) {
     score -= 10;
     factors.push('Limited transaction history');
     recommendations.push('Complete more transactions to build reputation');
   }
 
-  // Check for multiple wallets from same device
-  const walletFingerprints = JSON.parse(localStorage.getItem('walletFingerprints') || '[]');
+  // Multiple wallets from same device
+  const walletFingerprints = await getWalletFingerprints(streamId);
   if (walletFingerprints.length > 3) {
     score -= 20;
     factors.push('Multiple wallets from same device');
     recommendations.push('Use different devices for multiple wallets');
   }
 
-  // Check social connections
+  // Social connections check
   if (socialConnections.length === 0) {
     score -= 5;
     factors.push('No social connections');
     recommendations.push('Connect social accounts for better verification');
   }
 
-  // Check for rapid account creation
-  const accountCreationTime = localStorage.getItem('accountCreationTime');
+  // Recently created account check
+  const accountCreationTime = await getAccountCreationTime(streamId);
   if (accountCreationTime) {
-    const timeSinceCreation = Date.now() - parseInt(accountCreationTime);
-    if (timeSinceCreation < 24 * 60 * 60 * 1000) { // Less than 24 hours
+    const timeSinceCreation = Date.now() - parseInt(accountCreationTime, 10);
+    if (timeSinceCreation < 24 * 60 * 60 * 1000) {
       score -= 15;
       factors.push('Recently created account');
     }
   }
 
-  // Store fingerprint for future checks
+  // Store device fingerprint record
   const fingerprintID = generateUserID(fingerprint);
-  const existingFingerprints = JSON.parse(localStorage.getItem('deviceFingerprints') || '[]');
+  const existingFingerprints = await getDeviceFingerprints(streamId);
   if (!existingFingerprints.includes(fingerprintID)) {
-    existingFingerprints.push(fingerprintID);
-    localStorage.setItem('deviceFingerprints', JSON.stringify(existingFingerprints));
+    const updated = [...existingFingerprints, fingerprintID];
+    await setDeviceFingerprints(streamId, updated);
   }
 
-  // Store wallet fingerprint mapping
-  const walletFingerprints = JSON.parse(localStorage.getItem('walletFingerprints') || '[]');
-  if (!walletFingerprints.includes({ wallet: walletAddress, fingerprint: fingerprintID })) {
-    walletFingerprints.push({ wallet: walletAddress, fingerprint: fingerprintID });
-    localStorage.setItem('walletFingerprints', JSON.stringify(walletFingerprints));
+  // Store wallet → fingerprint mapping
+  const walletMap = await getWalletFingerprints(streamId);
+  if (!walletMap.some(wf => wf.wallet === walletAddress && wf.fingerprint === fingerprintID)) {
+    const updatedMap = [...walletMap, { wallet: walletAddress, fingerprint: fingerprintID }];
+    await setWalletFingerprints(streamId, updatedMap);
   }
 
   score = Math.max(0, Math.min(100, score));
@@ -234,6 +263,7 @@ export function advancedSybilDetection(
 
 /**
  * Integration with ØG Compute for AI-powered sybil detection
+ * ドキュメントに準拠した実装
  */
 export async function getOGComputeSybilScore(
   fingerprint: DeviceFingerprint,
@@ -241,30 +271,67 @@ export async function getOGComputeSybilScore(
   transactionData: any
 ): Promise<number> {
   try {
-    // This would integrate with ØG Compute API
-    // For now, return a mock score
-    const response = await fetch('/api/og-compute/sybil-detection', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        fingerprint,
-        walletAddress,
-        transactionData,
-      }),
-    });
+    // --- Broker 初期化 ---
+    const rpcUrl = process.env.OG_RPC_ENDPOINT ?? "https://evmrpc-testnet.0g.ai";
+    const privateKey = process.env.OG_PRIVATE_KEY;
+    if (!privateKey) {
+      throw new Error("OG_PRIVATE_KEY is not defined");
+    }
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    const wallet = new ethers.Wallet(privateKey, provider);
+    const broker = await createZGComputeNetworkBroker(wallet);
 
-    if (!response.ok) {
-      throw new Error('Failed to get sybil score from ØG Compute');
+    // --- 利用可能なサービスを取得 ---
+    const services: ServiceStructOutput[] = await broker.inference.listService();
+
+    // “sybil” モデルを探す（必要に応じてモデル名を固定できればより安全）
+    const sybilService = services.find(s => s.model.toLowerCase().includes("sybil"));
+    if (!sybilService) {
+      throw new Error("No sybil detection service found in available 0G services");
     }
 
-    const data = await response.json();
-    return data.score;
-  } catch (error) {
-    console.error('Error getting sybil score from ØG Compute:', error);
-    // Fallback to local calculation
+    const providerAddress = sybilService.provider;
+
+    // --- プロバイダーの署名認証（初回のみ） ---
+    await broker.inference.acknowledgeProviderSigner(providerAddress);
+
+    // --- サービスメタデータ取得 ---
+    const { endpoint, model } = await broker.inference.getServiceMetadata(providerAddress);
+
+    // --- リクエストヘッダー生成 ---
+    const content = JSON.stringify({ fingerprint, walletAddress, transactionData });
+    const headers = await broker.inference.getRequestHeaders(providerAddress, content);
+
+    // --- サービスへのリクエスト ---
+    const resp = await fetch(`${endpoint}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+      },
+      body: JSON.stringify({
+        messages: [{ role: "user", content }],
+        model,
+      }),
+    });
+    if (!resp.ok) {
+      throw new Error(`0G service request failed: ${resp.status} ${resp.statusText}`);
+    }
+
+    const respJson = await resp.json();
+
+    // （オプション）応答検証を行う場合
+    // await broker.inference.processResponse(providerAddress, respJson.choices[0].message.content, optionalChatId);
+
+    const strResult = respJson.choices?.[0]?.message?.content;
+    const score = Number(strResult);
+    if (isNaN(score)) {
+      throw new Error("Received invalid score from 0G service: " + strResult);
+    }
+
+    return score;
+  } catch (err) {
+    console.error("Error in getOGComputeSybilScore, falling back to local:", err);
     return calculateSybilScore(fingerprint).score;
   }
 }
-

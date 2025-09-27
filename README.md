@@ -124,8 +124,8 @@ pnpm start
 │   Social APIs   │    │   ØG Storage     │    │   Oracle Layer  │
 │                 │    │                  │    │                 │
 │   - Twitter     │    │   - Task Logs    │    │   - On-chain    │
-│   - Discord     │    │   - Proof Data   │    │   - Off-chain   │
-│   - GitHub      │    │   - Audit Trail  │    │   - Social      │
+│                 │    │   - Proof Data   │    │   - Off-chain   │
+│                 │    │   - Audit Trail  │    │   - Social      │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
@@ -145,7 +145,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 For support and questions:
 - Create an issue on GitHub
-- Join our Discord community
 - Follow us on Twitter
 
 ## Roadmap

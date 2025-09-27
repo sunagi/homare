@@ -5,7 +5,7 @@ export interface VerificationRequest {
   userId: string;
   walletAddress: string;
   proofData: any;
-  verificationType: 'ONCHAIN' | 'OFFCHAIN_SOCIAL' | 'OFFCHAIN_GITHUB' | 'OFFCHAIN_DISCORD';
+  verificationType: 'ONCHAIN' | 'OFFCHAIN_SOCIAL';
 }
 
 export interface VerificationResult {
@@ -64,7 +64,7 @@ export async function verifyOnChainTask(
 }
 
 /**
- * Verify off-chain social tasks (Twitter, Discord)
+ * Verify off-chain social tasks (Twitter)
  */
 export async function verifyOffChainSocialTask(
   taskId: number,
@@ -81,10 +81,6 @@ export async function verifyOffChainSocialTask(
       case 'twitter':
         verified = await verifyTwitterAction(action, proof);
         details = verified ? 'Twitter action verified' : 'Twitter verification failed';
-        break;
-      case 'discord':
-        verified = await verifyDiscordAction(action, proof);
-        details = verified ? 'Discord action verified' : 'Discord verification failed';
         break;
       default:
         return {
@@ -130,18 +126,18 @@ export async function verifyOffChainSocialTask(
 }
 
 /**
- * Verify GitHub tasks
+ * Verify Twitter tasks
  */
-export async function verifyGitHubTask(
+export async function verifyTwitterTask(
   taskId: number,
   walletAddress: string,
   proofData: any
 ): Promise<VerificationResult> {
   try {
-    const { repository, action, proof } = proofData;
+    const { tweetId, action, proof } = proofData;
     
-    // Verify GitHub action (star, fork, follow, etc.)
-    const verified = await verifyGitHubAction(repository, action, proof);
+    // Verify Twitter action (like, retweet, follow)
+    const verified = await verifyTwitterAction(tweetId, action, proof);
     
     if (!verified) {
       return {
@@ -149,7 +145,7 @@ export async function verifyGitHubTask(
         sybilScore: 0,
         proofHash: '',
         timestamp: Date.now(),
-        details: 'GitHub action verification failed',
+        details: 'Twitter action verification failed',
       };
     }
 
@@ -160,18 +156,18 @@ export async function verifyGitHubTask(
     return {
       verified: true,
       sybilScore: sybilResult.score,
-      proofHash: generateProofHash(repository, action, proof),
+      proofHash: generateProofHash(tweetId, action, proof),
       timestamp: Date.now(),
-      details: 'GitHub action verified successfully',
+      details: 'Twitter action verified successfully',
     };
   } catch (error) {
-    console.error('Error verifying GitHub task:', error);
+    console.error('Error verifying Twitter task:', error);
     return {
       verified: false,
       sybilScore: 0,
       proofHash: '',
       timestamp: Date.now(),
-      details: 'GitHub verification error occurred',
+      details: 'Twitter verification error occurred',
     };
   }
 }
@@ -216,15 +212,15 @@ async function verifyTransaction(
 /**
  * Verify Twitter action
  */
-async function verifyTwitterAction(action: string, proof: any): Promise<boolean> {
+async function verifyTwitterAction(tweetId: string, action: string, proof: any): Promise<boolean> {
   try {
-    // This would integrate with Twitter API
     const response = await fetch('/api/social/twitter/verify', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        tweetId,
         action,
         proof,
       }),
@@ -238,65 +234,6 @@ async function verifyTwitterAction(action: string, proof: any): Promise<boolean>
     return result.verified;
   } catch (error) {
     console.error('Error verifying Twitter action:', error);
-    return false;
-  }
-}
-
-/**
- * Verify Discord action
- */
-async function verifyDiscordAction(action: string, proof: any): Promise<boolean> {
-  try {
-    // This would integrate with Discord API
-    const response = await fetch('/api/social/discord/verify', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        action,
-        proof,
-      }),
-    });
-
-    if (!response.ok) {
-      return false;
-    }
-
-    const result = await response.json();
-    return result.verified;
-  } catch (error) {
-    console.error('Error verifying Discord action:', error);
-    return false;
-  }
-}
-
-/**
- * Verify GitHub action
- */
-async function verifyGitHubAction(repository: string, action: string, proof: any): Promise<boolean> {
-  try {
-    // This would integrate with GitHub API
-    const response = await fetch('/api/social/github/verify', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        repository,
-        action,
-        proof,
-      }),
-    });
-
-    if (!response.ok) {
-      return false;
-    }
-
-    const result = await response.json();
-    return result.verified;
-  } catch (error) {
-    console.error('Error verifying GitHub action:', error);
     return false;
   }
 }
@@ -317,10 +254,6 @@ export async function verifyTask(request: VerificationRequest): Promise<Verifica
     case 'ONCHAIN':
       return verifyOnChainTask(request.taskId, request.walletAddress, request.proofData);
     case 'OFFCHAIN_SOCIAL':
-      return verifyOffChainSocialTask(request.taskId, request.walletAddress, request.proofData);
-    case 'OFFCHAIN_GITHUB':
-      return verifyGitHubTask(request.taskId, request.walletAddress, request.proofData);
-    case 'OFFCHAIN_DISCORD':
       return verifyOffChainSocialTask(request.taskId, request.walletAddress, request.proofData);
     default:
       return {

@@ -24,6 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { setJson, getJson } from '@/lib/zg-storage'
 
 const SIDEBAR_COOKIE_NAME = 'sidebar_state'
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
@@ -31,6 +32,7 @@ const SIDEBAR_WIDTH = '16rem'
 const SIDEBAR_WIDTH_MOBILE = '18rem'
 const SIDEBAR_WIDTH_ICON = '3rem'
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
+const SIDEBAR_KV_KEY = 'sidebar_state'
 
 type SidebarContextProps = {
   state: 'expanded' | 'collapsed'
@@ -74,7 +76,7 @@ function SidebarProvider({
   const [_open, _setOpen] = React.useState(defaultOpen)
   const open = openProp ?? _open
   const setOpen = React.useCallback(
-    (value: boolean | ((value: boolean) => boolean)) => {
+    async (value: boolean | ((value: boolean) => boolean)) => {
       const openState = typeof value === 'function' ? value(open) : value
       if (setOpenProp) {
         setOpenProp(openState)
@@ -82,8 +84,8 @@ function SidebarProvider({
         _setOpen(openState)
       }
 
-      // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+      // Save sidebar state to zg-storage instead of cookie
+      await setSidebarState(openState)
     },
     [setOpenProp, open],
   )
@@ -108,6 +110,15 @@ function SidebarProvider({
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [toggleSidebar])
+
+  // On mount, load sidebar state from zg-storage
+  React.useEffect(() => {
+    getSidebarState().then((savedState) => {
+      if (typeof savedState === 'boolean') {
+        _setOpen(savedState)
+      }
+    })
+  }, [])
 
   // We add a state so that we can do data-state="expanded" or "collapsed".
   // This makes it easier to style the sidebar with Tailwind classes.
@@ -149,6 +160,15 @@ function SidebarProvider({
       </TooltipProvider>
     </SidebarContext.Provider>
   )
+}
+
+const setSidebarState = async (openState: boolean) => {
+  // Save sidebar state to zg-storage
+  await setJson('ui', SIDEBAR_KV_KEY, openState)
+}
+
+const getSidebarState = async (): Promise<boolean | undefined> => {
+  return await getJson<boolean>('ui', SIDEBAR_KV_KEY).catch(() => undefined)
 }
 
 function Sidebar({
